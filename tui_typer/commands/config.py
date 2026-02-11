@@ -1,14 +1,15 @@
 import configparser
 from pathlib import Path
-
+from loguru import logger
+from tui_typer import __app_name__
 
 class AppConfig:
     """Application configuration manager."""
 
     DEFAULT_CONFIG = {
         "general": {
-            "app_name": "CLI App",
-            "history_file": "~/.cli_app_history",
+            "app_name": __app_name__,
+            "history_file": f"~/.{__app_name__}_history",
             "max_history": "100",
         },
         "display": {
@@ -19,17 +20,27 @@ class AppConfig:
 
     def __init__(self, config_path: str = None):
         self.config = configparser.ConfigParser()
-        self.config_path = Path(config_path or "~/.cli_app.ini").expanduser()
+        self.config_path = Path(config_path or f"~/.{__app_name__}.ini").expanduser()
         self._load_defaults()
         self.load()
+        self._interactive:bool = False
+
+    @property
+    def interactive(self) -> bool:
+        return self._interactive
+    @interactive.setter
+    def interactive(self, value: bool) -> None:
+        self._interactive = value
 
     def _load_defaults(self) -> None:
         """Load default configuration."""
+        logger.debug("Loading default configuration")
         for section, options in self.DEFAULT_CONFIG.items():
             self.config[section] = options
 
     def load(self) -> None:
         """Load configuration from file."""
+        logger.debug(f'Loading configuration from {self.config_path}')
         if self.config_path.exists():
             self.config.read(self.config_path)
 

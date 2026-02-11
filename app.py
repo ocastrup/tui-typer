@@ -1,166 +1,21 @@
+from tui_typer.commands.loader import load_commands
+from tui_typer.ui.logging import TextualLogHandler
+from tui_typer.ui.command_provider import CommandProvider
 from textual.app import App, ComposeResult
 from textual.widgets import RichLog, Header, Footer, Input
-from textual.containers import Vertical, Horizontal
-from textual.command import Provider, Hits, Hit
-from typer_tui.commands.config import AppConfig
-from typer_tui.commands.history import HistoryManager
-from typer_tui.commands.console import CliConsole
-from typer_tui.commands.base import dispatch_typer_command, Command
+from textual.containers import Vertical
+from tui_typer.commands.config import AppConfig
+from tui_typer.commands.history import HistoryManager
+from tui_typer.commands.base import dispatch_typer_command, Command
 from difflib import get_close_matches
-from functools import partial
-from typing import List
-import typer
-from io import StringIO
-import sys
-from cli import cli, dispatch_typer_command
+from cli import cli
+
 from loguru import logger
-from configparser import ConfigParser
 
 
 
 
 
-class ContextManager:
-    """
-    Provide context between sub commands.
-
-    Args:
-        console: The main CLI console
-        config: The app configuration
-
-    """
-
-    def __init__(self, console: CliConsole, config: ConfigParser):
-        self._console:CliConsole = console
-        self._config:ConfigParser = config
-
-
-
-    @property
-    def console(self) -> CliConsole:
-        return self._console
-
-    @property
-    def config(self,) -> ConfigParser:
-        return self._config
-
-
-class CommandProvider(Provider):
-    """Provides commands to the Textual command palette."""
-
-    @property
-    def app(self) -> "CLIApp":
-        return super().app
-
-    async def search(self, query: str) -> Hits:
-        """Search for matching commands."""
-        matcher = self.matcher(query)
-
-        # Get Click group to access commands
-        from click import Group
-        click_group = typer.main.get_group(cli)
-
-        if isinstance(click_group, Group):
-            for cmd_name, cmd in click_group.commands.items():
-                score = matcher.match(cmd_name)
-                if score > 0:
-                    yield Hit(
-                        score,
-                        matcher.highlight(cmd_name),
-                        partial(self.app.run_worker, self._run_command([cmd_name])),
-                        help=cmd.help or cmd.short_help or "",
-                    )
-                # Search subcommands if this is a group
-                if isinstance(cmd, Group):
-                    for sub_name, sub_cmd in cmd.commands.items():
-                        full_name = f"{cmd_name} {sub_name}"
-                        score = matcher.match(full_name)
-                        if score > 0:
-                            yield Hit(
-                                score,
-                                matcher.highlight(full_name),
-                                partial(self.app.run_worker, self._run_command([cmd_name, sub_name])),
-                                help=sub_cmd.help or sub_cmd.short_help or "",
-                            )
-
-    async def _run_command(self, cmd_parts: List[str]) -> None:
-        """Execute the selected command and display the result."""
-        self.app.add_output(f"[bold cyan]>[/bold cyan] {' '.join(cmd_parts)}")
-        result = await dispatch_typer_command(cli, cmd_parts)
-        if result.stdout:
-            self.app.add_output(result.stdout)
-        if result.stderr:
-            self.app.add_output(f"[red]Error:[/red] {result.stderr}")
-
-
-def load_commands(typer_app: typer.Typer, context: ContextManager) -> dict[str, 'Command']:
-    """
-    Load all commands from a Typer application instance.
-    Returns a flat dict with both top-level and nested commands.
-    """
-    from typer_tui.commands.base import Command
-    from click import Group
-
-    commands = {}
-
-    # Get the Click group from Typer
-    click_group = typer.main.get_group(typer_app)
-
-    if isinstance(click_group, Group):
-        for cmd_name, cmd in click_group.commands.items():
-            help_text = cmd.help or cmd.short_help or ""
-
-            # Store metadata about whether this is a group
-            is_group = isinstance(cmd, Group)
-
-            commands[cmd_name] = Command(
-                name=cmd_name,
-                description=help_text,
-                context=context,
-                typer_command=cmd,
-                is_group=is_group
-            )
-
-            # If it's a group, load its subcommands with parent reference
-            if is_group:
-                for sub_name, sub_cmd in cmd.commands.items():
-                    full_name = f"{cmd_name} {sub_name}"
-                    sub_help = sub_cmd.help or sub_cmd.short_help or ""
-
-                    commands[full_name] = Command(
-                        name=full_name,
-                        description=sub_help,
-                        context=context,
-                        typer_command=sub_cmd,
-                        is_group=False,
-                        parent=cmd_name
-                    )
-
-    return commands
-
-
-class TextualLogHandler:
-    """Custom loguru sink that writes to a Textual RichLog widget."""
-
-    LEVEL_COLORS = {
-        "DEBUG": "blue",
-        "INFO": "green",
-        "WARNING": "yellow",
-        "ERROR": "red",
-        "CRITICAL": "bold red",
-    }
-
-    def __init__(self, log_widget: RichLog):
-        self.log_widget = log_widget
-
-    def write(self, message) -> None:
-        """Write log message to the widget."""
-        record = message.record
-        level = record["level"].name
-        color = self.LEVEL_COLORS.get(level, "white")
-
-        text = f"[{color}]{level: <8}[/{color}] | [cyan]{record['name']}[/cyan]:[cyan]{record['function']}[/cyan] - {record['message']}"
-        self.log_widget.write(text)
 
 
 class CLIApp(App):
@@ -189,10 +44,11 @@ class CLIApp(App):
     ]
     COMMANDS = App.COMMANDS | {CommandProvider}
 
-    def __init__(self, config_path: str = None):
+    def __init__(self):
         super().__init__()
+        self.app_config = AppConfig(config_path=".cli_app.ini")
+        #self._context = ContextManager(config=self.app_config, console=CliConsole())
 
-        self.app_config = AppConfig(config_path)
         self.history_manager = HistoryManager(
             self.app_config.history_file,
             self.app_config.max_history
@@ -202,7 +58,7 @@ class CLIApp(App):
         self.current_input: str = ""
         self._non_interactive: bool = False
         self.commands: dict[str, Command] = {}
-
+        # self._context will be initialized when needed
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -229,12 +85,8 @@ class CLIApp(App):
         logger.info("Logger initialized")
 
         # Load commands from the typer CLI
-        from cli import cli
         self.typer_cli = cli
-        self.commands = load_commands(self.typer_cli, ContextManager(
-            console=CliConsole(),
-            config=AppConfig().config
-        ))
+        self.commands = load_commands(self.typer_cli)
         logger.info(f"Loaded {len(self.commands)} commands")
 
     def on_key(self, event) -> None:
@@ -249,12 +101,12 @@ class CLIApp(App):
         input_widget = self.query_one("#input-box", Input)
         if self.command_history:
             if self.history_index == -1:
-                self.current_input = input_widget.value
+                self.current_input = str(input_widget.value)
                 self.history_index = len(self.command_history) - 1
             elif self.history_index > 0:
                 self.history_index -= 1
             input_widget.value = self.command_history[self.history_index]
-            input_widget.cursor_position = len(input_widget.value)
+            input_widget.cursor_position = len(str(input_widget.value))
 
     def _history_next(self) -> None:
         input_widget = self.query_one("#input-box", Input)
@@ -265,7 +117,7 @@ class CLIApp(App):
             else:
                 self.history_index = -1
                 input_widget.value = self.current_input
-            input_widget.cursor_position = len(input_widget.value)
+            input_widget.cursor_position = len(str(input_widget.value))
 
     @property
     def command_history(self) -> list[str]:
@@ -297,6 +149,11 @@ class CLIApp(App):
 
         cmd_name = parts[0].lower()
 
+        # Handle built-in history command
+        if cmd_name == "history":
+            self.display_history()
+            return
+
         # Handle built-in help command
         if cmd_name == "help":
             if len(parts) > 1:
@@ -322,12 +179,20 @@ class CLIApp(App):
         # Dispatch through typer CLI
         result = await dispatch_typer_command(self.typer_cli, parts)
 
-        if result.stdout:
-            self.add_output(result.stdout)
-        if result.stderr:
-            self.add_output(f"[red]Error:[/red] {result.stderr}")
-        if result.exit_code != 0 and not result.stderr and result.help_text:
-            self.add_output(result.help_text)
+        # If --help was requested, show the help text
+        if "--help" in parts:
+            if result.help_text:
+                self.add_output(result.help_text)
+            elif result.stdout:
+                self.add_output(result.stdout)
+        else:
+            # Normal command execution
+            if result.stdout:
+                self.add_output(result.stdout)
+            if result.stderr:
+                self.add_output(f"[red]Error:[/red] {result.stderr}")
+            if result.exit_code != 0 and not result.stdout and not result.stderr and result.help_text:
+                self.add_output(result.help_text)
 
     async def _dispatch_with_help(self, args: list[str]) -> None:
         """Show help for a specific command."""
@@ -421,6 +286,15 @@ class CLIApp(App):
         self.history_manager.save()
         self.app_config.save()
         super().exit(result)
+
+    def display_history(self) -> None:
+        """Display the command history in the output widget."""
+        self.add_output("[bold cyan]Command History:[/bold cyan]")
+        if not self.history_manager.history:
+            self.add_output("  [dim]No history yet.[/dim]")
+            return
+        for i, cmd in enumerate(self.history_manager.history, 1):
+            self.add_output(f"  [green]{i:>3}[/green]: {cmd}")
 
 
 if __name__ == "__main__":

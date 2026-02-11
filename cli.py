@@ -1,16 +1,23 @@
 import typer
-from typer_tui.commands import typer_subcommand
-from typer_tui.commands.base import dispatch_typer_command, DispatchResult
-from typing import Optional, List
+from click import pass_context
+from tui_typer.commands import typer_subcommand
+from typing import Optional
 from pathlib import Path
 
 cli = typer.Typer(help="An Interactive OCX Reader CLI Application")
 
 
+@pass_context
 @cli.callback()
 def main(ctx: typer.Context):
     """Main entry point for the CLI application."""
+
+    # context = ContextManager(
+    #     console=CliConsole(),
+    #     config=AppConfig(config_path=None))
+    # ctx.obj = context
     pass
+
 
 
 @cli.command()
@@ -20,7 +27,7 @@ def interactive(
 ):
     """Launch the interactive TUI mode."""
     from app import CLIApp
-    cli_app = CLIApp(config_path=config)
+    cli_app = CLIApp()
     cli_app.run()
 
 
@@ -42,6 +49,13 @@ def list_commands():
             cmd = click_group.commands[cmd_name]
             help_text = cmd.help or cmd.short_help or "No description"
             typer.echo(f"  {cmd_name:<20} {help_text}")
+
+
+@cli.command()
+def history():
+    """Display the command history."""
+    # This is a placeholder and will be handled by the TUI
+    pass
 
 
 # Register subcommands AFTER all direct commands

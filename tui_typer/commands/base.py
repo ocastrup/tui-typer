@@ -1,8 +1,10 @@
+from __future__ import annotations
 import typer
 from typer.testing import CliRunner
 import asyncio
 from typing import Sequence, List
 from dataclasses import dataclass
+from loguru import logger
 
 
 @dataclass
@@ -27,34 +29,45 @@ async def dispatch_typer_command(
     Returns:
         DispatchResult containing exit code, stdout, stderr, and help text
     """
-    from loguru import logger
-    from click.exceptions import ClickException
-
     runner = CliRunner()
 
     def _invoke(argv: List[str]):
         logger.debug(f"Invoking with argv: {argv}")
-        result = runner.invoke(app, argv, prog_name=app.info.name, catch_exceptions=True)
+        # Avoid passing a problematic prog_name that can be a DefaultPlaceholder in Typer/Click
+        # which breaks help rendering with AttributeError: 'DefaultPlaceholder' has no attribute 'lstrip'
+        result = runner.invoke(app, argv, catch_exceptions=True)
         logger.debug(f"Result: exit_code={result.exit_code}")
+        if result.exception:
+            logger.error(f"Exception during invoke: {result.exception}")
+        if not result.stdout and not result.stderr and result.exit_code != 0:
+            logger.warning(f"Command failed silently: exit_code={result.exit_code}")
         return result
 
     try:
         # Execute the command
         result = await asyncio.to_thread(_invoke, list(args))
 
+        logger.debug(
+            f"Command result: exit_code={result.exit_code}, "
+            f"stdout_len={len(result.stdout)}, "
+            f"stderr_len={len(result.stderr) if result.stderr else 0}"
+        )
+
         # Only get help text if the command failed or if explicitly requested
         help_text = ""
         if "--help" in args:
             help_text = result.stdout
+            logger.debug(f"Help requested, help_text length: {len(help_text)}")
         elif result.exit_code != 0 and not result.stdout and not result.stderr:
             # Only fetch help if command failed silently
             help_result = await asyncio.to_thread(_invoke, list(args) + ["--help"])
             help_text = help_result.stdout
+            logger.debug(f"Command failed, fetched help_text length: {len(help_text)}")
 
         return DispatchResult(
             exit_code=result.exit_code,
             stdout=result.stdout,
-            stderr=result.stderr,
+            stderr=result.stderr or "",
             help_text=help_text,
         )
     except Exception as e:
@@ -74,17 +87,17 @@ class Command:
         self,
         name: str,
         description: str,
-        context: 'ContextManager',
         typer_command=None,
         is_group: bool = False,
-        parent: str = None
+        parent: str = None,
+        params: list = None
     ):
         self.name = name
         self.description = description
-        self.context = context
         self._typer_command = typer_command
         self.is_group = is_group
         self.parent = parent
+        self.params = params or []
 
     async def execute(self, app: 'CLIApp', args: list[str]) -> None:
         """Execute the command via Typer dispatch."""
