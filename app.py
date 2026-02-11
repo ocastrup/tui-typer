@@ -75,11 +75,12 @@ class CLIApp(App):
         input_widget = self.query_one("#input-box", Input)
         input_widget.focus()
         logger.remove()
+        log_level = self.app_config.get('general', 'log_level', fallback='INFO')
 
         logger.add(
             TextualLogHandler(self.log_widget).write,
             format="{message}",
-            level="DEBUG",
+            level=log_level,
             colorize=False,
         )
         logger.info("Logger initialized")
@@ -148,6 +149,12 @@ class CLIApp(App):
             return
 
         cmd_name = parts[0].lower()
+
+        # Built-in exit command: close the application gracefully
+        if cmd_name in {"exit", "quit"}:
+            self.add_output("[dim]Exiting...[/dim]")
+            self.exit()
+            return
 
         # Handle built-in history command
         if cmd_name == "history":

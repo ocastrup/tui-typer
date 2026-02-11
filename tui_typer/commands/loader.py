@@ -22,6 +22,9 @@ def load_commands(typer_app: typer.Typer) -> Dict[str, Command]:
                 is_group=is_group,
                 params=cmd.params
             )
+            if command_obj.name == "interactive":# Don't include the interactive command in the command palette
+                logger.debug(f"Skipping 'interactive' command for command palette")
+                continue
             commands[cmd_name] = command_obj
 
             if is_group:
