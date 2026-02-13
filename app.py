@@ -1,21 +1,17 @@
-from tui_typer.commands.loader import load_commands
-from tui_typer.ui.logging import TextualLogHandler
-from tui_typer.ui.command_provider import CommandProvider
-from textual.app import App, ComposeResult
-from textual.widgets import RichLog, Header, Footer, Input
-from textual.containers import Vertical
-from tui_typer.commands.config import AppConfig
-from tui_typer.commands.history import HistoryManager
-from tui_typer.commands.base import dispatch_typer_command, Command
 from difflib import get_close_matches
-from cli import cli
 
 from loguru import logger
+from textual.app import App, ComposeResult
+from textual.containers import Vertical
+from textual.widgets import Footer, Header, Input, ProgressBar, RichLog
 
-
-
-
-
+from cli import cli
+from tui_typer.commands.base import Command, dispatch_typer_command
+from tui_typer.commands.config import AppConfig
+from tui_typer.commands.history import HistoryManager
+from tui_typer.commands.loader import load_commands
+from tui_typer.ui.command_provider import CommandProvider
+from tui_typer.ui.logging import TextualLogHandler, TextualProgressSink
 
 
 class CLIApp(App):
@@ -33,6 +29,10 @@ class CLIApp(App):
         height: 1fr;
         border: solid yellow;
     }
+    #progress-bar {
+        height: 1;
+        border: solid blue;
+    }
     #input-box {
         dock: bottom;
         height: 3;
@@ -47,11 +47,10 @@ class CLIApp(App):
     def __init__(self):
         super().__init__()
         self.app_config = AppConfig(config_path=".cli_app.ini")
-        #self._context = ContextManager(config=self.app_config, console=CliConsole())
+        # self._context = ContextManager(config=self.app_config, console=CliConsole())
 
         self.history_manager = HistoryManager(
-            self.app_config.history_file,
-            self.app_config.max_history
+            self.app_config.history_file, self.app_config.max_history
         )
 
         self.history_index: int = -1
@@ -65,6 +64,7 @@ class CLIApp(App):
         with Vertical(id="main-container"):
             yield RichLog(id="output-log", highlight=True, markup=True)
             yield RichLog(id="logger-log", highlight=True, markup=True)
+            yield ProgressBar(id="progress-bar", total=100, show_eta=False)
         yield Input(id="input-box", placeholder="Enter command...")
         yield Footer()
 
@@ -72,10 +72,13 @@ class CLIApp(App):
         """Configure loguru to use the Textual widget after mount."""
         self.log_widget = self.query_one("#logger-log", RichLog)
         self.output_widget = self.query_one("#output-log", RichLog)
+        self.progress_widget = self.query_one("#progress-bar", ProgressBar)
+        self.progress_sink = TextualProgressSink(self.progress_widget)
+
         input_widget = self.query_one("#input-box", Input)
         input_widget.focus()
         logger.remove()
-        log_level = self.app_config.get('general', 'log_level', fallback='INFO')
+        log_level = self.app_config.get("general", "log_level", fallback="INFO")
 
         logger.add(
             TextualLogHandler(self.log_widget).write,
@@ -136,8 +139,9 @@ class CLIApp(App):
         event.input.value = ""
 
     def add_output(self, text: str) -> None:
-        if getattr(self, '_non_interactive', False):
+        if getattr(self, "_non_interactive", False):
             from rich import print as rprint
+
             rprint(text)
         else:
             self.output_widget.write(text)
@@ -177,6 +181,7 @@ class CLIApp(App):
 
             # Suggest similar commands
             from difflib import get_close_matches
+
             all_command_names = list(self.commands.keys())
             suggestions = get_close_matches(parts[0], all_command_names, n=3, cutoff=0.6)
             if suggestions:
@@ -198,7 +203,12 @@ class CLIApp(App):
                 self.add_output(result.stdout)
             if result.stderr:
                 self.add_output(f"[red]Error:[/red] {result.stderr}")
-            if result.exit_code != 0 and not result.stdout and not result.stderr and result.help_text:
+            if (
+                result.exit_code != 0
+                and not result.stdout
+                and not result.stderr
+                and result.help_text
+            ):
                 self.add_output(result.help_text)
 
     async def _dispatch_with_help(self, args: list[str]) -> None:
@@ -214,15 +224,17 @@ class CLIApp(App):
         top_level_commands = {
             name: cmd
             for name, cmd in sorted(self.commands.items())
-            if not hasattr(cmd, 'parent') or cmd.parent is None
+            if not hasattr(cmd, "parent") or cmd.parent is None
         }
 
         for name, cmd in top_level_commands.items():
             # Add indicator if this is a command group
-            suffix = " [dim](group)[/dim]" if getattr(cmd, 'is_group', False) else ""
+            suffix = " [dim](group)[/dim]" if getattr(cmd, "is_group", False) else ""
             self.add_output(f"  [green]{name}[/green]{suffix}: {cmd.description}")
 
-        self.add_output("\n[dim]Type 'help <command>' for detailed help on a specific command[/dim]")
+        self.add_output(
+            "\n[dim]Type 'help <command>' for detailed help on a specific command[/dim]"
+        )
 
     def _show_command_help(self, cmd_name: str) -> None:
         """Display detailed help for a specific command, including subcommands if it's a group."""
@@ -233,7 +245,7 @@ class CLIApp(App):
             command = self.commands[parts[0]]
 
             # If this is a group, show custom help with subcommands
-            if getattr(command, 'is_group', False):
+            if getattr(command, "is_group", False):
                 self.add_output(f"[bold cyan]Command Group:[/bold cyan] [green]{cmd_name}[/green]")
                 self.add_output(f"[bold cyan]Description:[/bold cyan] {command.description}\n")
                 self.add_output("[bold cyan]Subcommands:[/bold cyan]")
@@ -242,7 +254,7 @@ class CLIApp(App):
                 subcommands = {
                     name: cmd
                     for name, cmd in sorted(self.commands.items())
-                    if hasattr(cmd, 'parent') and cmd.parent == cmd_name
+                    if hasattr(cmd, "parent") and cmd.parent == cmd_name
                 }
 
                 for sub_name, sub_cmd in subcommands.items():
@@ -250,7 +262,9 @@ class CLIApp(App):
                     display_name = sub_name.split()[-1]
                     self.add_output(f"  [green]{display_name}[/green]: {sub_cmd.description}")
 
-                self.add_output(f"\n[dim]Type 'help {cmd_name} <subcommand>' for detailed help[/dim]")
+                self.add_output(
+                    f"\n[dim]Type 'help {cmd_name} <subcommand>' for detailed help[/dim]"
+                )
             else:
                 # For leaf commands, show Typer's help
                 self.run_worker(self._dispatch_with_help([cmd_name]))

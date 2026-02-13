@@ -1,4 +1,5 @@
 from tui_typer.ui.console import CliConsole
+
 from .config import AppConfig
 
 
@@ -9,7 +10,6 @@ class ContextManager:
         self._console: CliConsole = console
         self._config: AppConfig = config
         self._interactive: bool = False
-
 
     @property
     def console(self) -> CliConsole:
@@ -22,6 +22,7 @@ class ContextManager:
     @property
     def interactive(self) -> bool:
         return self._interactive
+
     @interactive.setter
     def interactive(self, value: bool) -> None:
         self._interactive = value

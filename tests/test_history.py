@@ -1,10 +1,14 @@
 """Test script to verify history command and command execution work correctly."""
-from tui_typer.commands.history import HistoryManager
-from tui_typer.commands.config import AppConfig
-from cli import cli
-from typer.testing import CliRunner
-from tui_typer.commands.base import dispatch_typer_command
+
 import asyncio
+
+from typer.testing import CliRunner
+
+from cli import cli
+from tui_typer.commands.base import dispatch_typer_command
+from tui_typer.commands.config import AppConfig
+from tui_typer.commands.history import HistoryManager
+
 
 def test_history_manager_basic():
     config = AppConfig(config_path=None)
@@ -36,4 +40,5 @@ def test_async_dispatch_version_and_history():
 
         res = await dispatch_typer_command(cli, ["history"])
         assert res.exit_code == 0
+
     asyncio.run(_run())

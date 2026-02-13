@@ -1,6 +1,9 @@
 """Test script to verify --help flag works correctly."""
+
 from typer.testing import CliRunner
+
 from cli import cli
+
 
 def test_version_help():
     runner = CliRunner()

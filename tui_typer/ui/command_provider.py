@@ -1,8 +1,10 @@
-from textual.command import Provider, Hits, Hit
-from typing import List, TYPE_CHECKING, Callable
-import typer
-from cli import cli
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
+from textual.command import Hit, Hits, Provider
+import typer
+
+from cli import cli
 from tui_typer.commands.base import dispatch_typer_command
 
 if TYPE_CHECKING:
@@ -16,10 +18,12 @@ class CommandProvider(Provider):
     def app(self) -> "CLIApp":
         return super().app
 
-    def _create_command_callback(self, cmd_parts: List[str]) -> Callable[[], None]:
+    def _create_command_callback(self, cmd_parts: list[str]) -> Callable[[], None]:
         """Create a synchronous callback that runs the async command."""
+
         def callback() -> None:
             self.app.run_worker(self._run_command(cmd_parts))
+
         return callback
 
     async def search(self, query: str) -> Hits:
@@ -28,6 +32,7 @@ class CommandProvider(Provider):
 
         # Get Click group to access commands
         from click import Group
+
         click_group = typer.main.get_group(cli)
 
         if isinstance(click_group, Group):
@@ -53,7 +58,7 @@ class CommandProvider(Provider):
                                 help=sub_cmd.help or sub_cmd.short_help or "",
                             )
 
-    async def _run_command(self, cmd_parts: List[str]) -> None:
+    async def _run_command(self, cmd_parts: list[str]) -> None:
         """Execute the selected command and display the result."""
         self.app.add_output(f"[bold cyan]>[/bold cyan] {' '.join(cmd_parts)}")
         result = await dispatch_typer_command(cli, cmd_parts)

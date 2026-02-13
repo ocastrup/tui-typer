@@ -1,8 +1,7 @@
-import typer
 from click import pass_context
+import typer
+
 from tui_typer.commands import typer_subcommand
-from typing import Optional
-from pathlib import Path
 
 cli = typer.Typer(help="An Interactive OCX Reader CLI Application")
 
@@ -19,14 +18,11 @@ def main(ctx: typer.Context):
     pass
 
 
-
 @cli.command()
-def interactive(
-        config: Optional[Path] = typer.Option(".cli_app.ini", "--config", "-c", help="Config file path"),
-        debug: bool = typer.Option(False, "--debug", "-d", help="Enable debug mode"),
-):
+def interactive():
     """Launch the interactive TUI mode."""
     from app import CLIApp
+
     cli_app = CLIApp()
     cli_app.run()
 
@@ -41,6 +37,7 @@ def version():
 def list_commands():
     """List all available commands."""
     from click import Group
+
     click_group = typer.main.get_group(cli)
 
     typer.echo("Available commands:")

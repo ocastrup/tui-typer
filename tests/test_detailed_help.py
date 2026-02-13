@@ -1,5 +1,7 @@
 """Unit tests for CLI help commands."""
+
 from typer.testing import CliRunner
+
 from cli import cli
 
 

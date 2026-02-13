@@ -13,15 +13,15 @@ class HistoryManager:
     def load(self) -> None:
         """Load history from file."""
         if self.history_file.exists():
-            with open(self.history_file, "r") as f:
+            with open(self.history_file) as f:
                 self.history = [line.strip() for line in f if line.strip()]
-                self.history = self.history[-self.max_history:]
+                self.history = self.history[-self.max_history :]
 
     def save(self) -> None:
         """Save history to file."""
         self.history_file.parent.mkdir(parents=True, exist_ok=True)
         with open(self.history_file, "w") as f:
-            for cmd in self.history[-self.max_history:]:
+            for cmd in self.history[-self.max_history :]:
                 f.write(f"{cmd}\n")
 
     def add(self, command: str) -> None:
@@ -29,7 +29,7 @@ class HistoryManager:
         if command and (not self.history or self.history[-1] != command):
             self.history.append(command)
             if len(self.history) > self.max_history:
-                self.history = self.history[-self.max_history:]
+                self.history = self.history[-self.max_history :]
 
     def get(self, index: int) -> str | None:
         """Get command at index."""

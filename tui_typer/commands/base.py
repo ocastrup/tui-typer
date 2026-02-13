@@ -1,10 +1,12 @@
 from __future__ import annotations
+
+import asyncio
+from collections.abc import Sequence
+from dataclasses import dataclass
+
+from loguru import logger
 import typer
 from typer.testing import CliRunner
-import asyncio
-from typing import Sequence, List
-from dataclasses import dataclass
-from loguru import logger
 
 
 @dataclass
@@ -31,7 +33,7 @@ async def dispatch_typer_command(
     """
     runner = CliRunner()
 
-    def _invoke(argv: List[str]):
+    def _invoke(argv: list[str]):
         logger.debug(f"Invoking with argv: {argv}")
         # Avoid passing a problematic prog_name that can be a DefaultPlaceholder in Typer/Click
         # which breaks help rendering with AttributeError: 'DefaultPlaceholder' has no attribute 'lstrip'
@@ -80,6 +82,7 @@ async def dispatch_typer_command(
             help_text="",
         )
 
+
 class Command:
     """Represents a CLI command."""
 
@@ -90,7 +93,7 @@ class Command:
         typer_command=None,
         is_group: bool = False,
         parent: str = None,
-        params: list = None
+        params: list = None,
     ):
         self.name = name
         self.description = description
@@ -99,7 +102,7 @@ class Command:
         self.parent = parent
         self.params = params or []
 
-    async def execute(self, app: 'CLIApp', args: list[str]) -> None:
+    async def execute(self, app: CLIApp, args: list[str]) -> None:
         """Execute the command via Typer dispatch."""
         if self._typer_command:
             # For subcommands (e.g., "serialize excel"), split the name
@@ -119,4 +122,4 @@ class Command:
                 # Show help if command failed silently
                 app.add_output(result.help_text)
         else:
-            app.add_output(f"[yellow]Command not implemented[/yellow]")
+            app.add_output("[yellow]Command not implemented[/yellow]")

@@ -7,9 +7,56 @@ dependencies = [
     "loguru>=0.7.3",
     "openpyxl>=3.1.5",
     "pandas>=2.3.3",
+    "pre-commit>=4.5.1",
     "pytest>=9.0.2",
-    "pytest-cov>=4.1.0",
-    "coverage>=7.6.0",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.15.0",
     "textual>=7.5.0",
     "typer>=0.21.1",
 ]
+[project.optional-dependencies]
+# Development tooling: install with `pip install .[dev]`
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=4.1.0",
+    "coverage>=7.6.0",
+    "ruff>=0.6.9",
+    "pre-commit>=3.8.0",
+]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+# Exclude common build/cache and data folders
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".pytest_cache",
+    "build",
+    "dist",
+    "htmlcov",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.ruff.lint]
+# Enable a good baseline of rule sets
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "B",   # flake8-bugbear
+    "I",   # isort
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line length handled by formatter / context
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["tui_typer"]
+force-sort-within-sections = true

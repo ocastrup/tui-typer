@@ -1,10 +1,11 @@
-from typing import Dict
-import typer
 from click import Group
-from tui_typer.commands.base import Command
 from loguru import logger
+import typer
 
-def load_commands(typer_app: typer.Typer) -> Dict[str, Command]:
+from tui_typer.commands.base import Command
+
+
+def load_commands(typer_app: typer.Typer) -> dict[str, Command]:
     """Load all commands from a Typer application instance."""
     commands = {}
     click_group = typer.main.get_group(typer_app)
@@ -20,10 +21,12 @@ def load_commands(typer_app: typer.Typer) -> Dict[str, Command]:
                 description=help_text,
                 typer_command=cmd,
                 is_group=is_group,
-                params=cmd.params
+                params=cmd.params,
             )
-            if command_obj.name == "interactive":# Don't include the interactive command in the command palette
-                logger.debug(f"Skipping 'interactive' command for command palette")
+            if (
+                command_obj.name == "interactive"
+            ):  # Don't include the interactive command in the command palette
+                logger.debug("Skipping 'interactive' command for command palette")
                 continue
             commands[cmd_name] = command_obj
 
@@ -38,7 +41,7 @@ def load_commands(typer_app: typer.Typer) -> Dict[str, Command]:
                         typer_command=sub_cmd,
                         is_group=False,
                         parent=cmd_name,
-                        params=sub_cmd.params
+                        params=sub_cmd.params,
                     )
                     commands[full_name] = sub_command_obj
 

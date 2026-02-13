@@ -23,7 +23,7 @@ The `history` command displays all previously executed commands in the TUI sessi
    ```
    > history
    ```
-   
+
    **Output:**
    ```
    Command History:
@@ -37,7 +37,7 @@ The `history` command displays all previously executed commands in the TUI sessi
 - **Persistent History**: Commands are saved to `~/.tui-typer_history`
 - **Numbered Display**: Each command is numbered for easy reference
 - **Maximum Limit**: Default maximum of 100 commands (configurable)
-- **Arrow Key Navigation**: 
+- **Arrow Key Navigation**:
   - **↑ (Up)**: Navigate to previous command
   - **↓ (Down)**: Navigate to next command
 
@@ -150,7 +150,7 @@ python verify_implementation.py
 2. Let the app create a new one on next run
 
 ### Issue: History not saving
-**Solution:** 
+**Solution:**
 1. Check write permissions on `~/.tui-typer_history`
 2. Verify the history file path in config
 

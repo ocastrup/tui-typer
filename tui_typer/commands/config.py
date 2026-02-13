@@ -1,7 +1,10 @@
 import configparser
 from pathlib import Path
+
 from loguru import logger
+
 from tui_typer import __app_name__
+
 
 class AppConfig:
     """Application configuration manager."""
@@ -23,11 +26,12 @@ class AppConfig:
         self.config_path = Path(config_path or f"~/.{__app_name__}.ini").expanduser()
         self._load_defaults()
         self.load()
-        self._interactive:bool = False
+        self._interactive: bool = False
 
     @property
     def interactive(self) -> bool:
         return self._interactive
+
     @interactive.setter
     def interactive(self, value: bool) -> None:
         self._interactive = value
@@ -40,7 +44,7 @@ class AppConfig:
 
     def load(self) -> None:
         """Load configuration from file."""
-        logger.debug(f'Loading configuration from {self.config_path}')
+        logger.debug(f"Loading configuration from {self.config_path}")
         if self.config_path.exists():
             self.config.read(self.config_path)
 
