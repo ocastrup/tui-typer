@@ -2,9 +2,11 @@
 """Demo script to show the progress bar working with async operations."""
 
 import asyncio
+
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer, ProgressBar, RichLog
 from textual.containers import Vertical
+from textual.widgets import Footer, Header, ProgressBar, RichLog
+
 from tui_typer.ui.logging import TextualProgressSink
 
 

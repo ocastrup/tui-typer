@@ -55,6 +55,8 @@ select = [
 ]
 ignore = [
     "E501",  # line length handled by formatter / context
+    "E402",  # module level import not at top of file
+    "F821",  # undefined name
 ]
 
 [tool.ruff.lint.isort]

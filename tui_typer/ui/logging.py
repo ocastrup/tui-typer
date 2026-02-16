@@ -1,4 +1,4 @@
-from textual.widgets import RichLog, ProgressBar
+from textual.widgets import ProgressBar, RichLog
 
 
 class TextualLogHandler:
