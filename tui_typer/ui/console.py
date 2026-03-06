@@ -15,7 +15,7 @@ from rich.theme import Theme
 
 # Styling
 
-PADDING = f'{" " * 5}'
+PADDING = f"{' ' * 5}"
 console_theme = Theme({"info": "dim cyan", "warning": "magenta", "error": "bold red"})
 
 style_table_header = Style(color="blue", bold=True)

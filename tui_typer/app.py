@@ -42,7 +42,11 @@ from tui_typer.command_dispatcher.history import HistoryManager
 from tui_typer.command_dispatcher.loader import load_commands
 from tui_typer.context.config import AppConfig
 from tui_typer.ui.command_provider import CommandProvider
+from tui_typer.ui.editor import EditorLauncher
+from tui_typer.ui.file_picker import FilePickerResult, FilePickerScreen
+from tui_typer.ui.fuzzy_search import FuzzyFileSearchScreen
 from tui_typer.ui.logging import TextualLogHandler, TextualProgressSink
+from tui_typer.ui.path_suggester import PathSuggester
 
 
 class CLIApp(App):
@@ -84,6 +88,9 @@ class CLIApp(App):
     BINDINGS = [
         ("ctrl+c", "quit", "Quit"),
         ("escape", "cancel_command", "Cancel"),
+        ("ctrl+b", "open_file_picker", "Browse"),
+        ("ctrl+s", "open_fuzzy_search", "Search"),
+        ("ctrl+g", "open_in_editor", "Editor"),
     ]
     COMMANDS = App.COMMANDS | {CommandProvider}
 
@@ -101,8 +108,10 @@ class CLIApp(App):
         # Cancel event for the currently-running command (None when idle)
         self._active_cancel_event: threading.Event | None = None
 
-        # Mark the shared ContextManager as interactive
-        self._context_manager = get_context_manager()
+        # Mark the shared ContextManager as interactive, injecting our AppConfig
+        # so that commands, EditorLauncher, etc. all see the same INI-backed
+        # config rather than a second independently-loaded instance.
+        self._context_manager = get_context_manager(config=self.app_config)
         self._context_manager.interactive = True
 
     # ------------------------------------------------------------------
@@ -115,7 +124,11 @@ class CLIApp(App):
             yield RichLog(id="output-log", highlight=True, markup=True)
             yield RichLog(id="logger-log", highlight=True, markup=True)
             yield ProgressBar(id="progress-bar", total=100, show_eta=False)
-        yield Input(id="input-box", placeholder="Enter command...")
+        yield Input(
+            id="input-box",
+            placeholder="Enter command…  (Ctrl+B browse · Ctrl+S search · Ctrl+G edit)",
+            suggester=PathSuggester(),
+        )
         yield Footer()
 
     def on_mount(self) -> None:
@@ -142,6 +155,19 @@ class CLIApp(App):
         self.typer_cli = cli
         self.commands = load_commands(self.typer_cli)
         logger.info(f"Loaded {len(self.commands)} commands.")
+
+    def on_unmount(self) -> None:
+        """Persist config and command history when the TUI exits."""
+        try:
+            self.history_manager.save()
+            logger.debug("Command history saved.")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"Could not save command history: {exc}")
+        try:
+            self.app_config.save()
+            logger.debug(f"Config saved to {self.app_config.config_path}")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(f"Could not save config: {exc}")
 
     # ------------------------------------------------------------------
     # Keyboard history navigation
@@ -202,6 +228,98 @@ class CLIApp(App):
             logger.info("User requested cancellation via Escape.")
         else:
             self.add_output("[dim]No command is currently running.[/dim]")
+
+    # ------------------------------------------------------------------
+    # File picker action  (Ctrl+B)
+    # ------------------------------------------------------------------
+
+    def action_open_file_picker(self) -> None:
+        """Open the directory-tree file picker (Ctrl+B).
+
+        The selected path is appended to whatever is currently in the
+        input box so it can be used as a command argument.  If the Edit
+        button (or Ctrl+G) is used inside the picker, the file is opened
+        in the external editor instead.
+        """
+
+        def _on_picked(result: FilePickerResult | None) -> None:
+            if result is None:
+                return
+            if result.action == "edit":
+                self.run_worker(self._launch_editor(result.path), name="editor")
+            else:
+                self._insert_path_into_input(result.path)
+                self.add_output(f"[dim]Selected: {result.path}[/dim]")
+
+        self.push_screen(FilePickerScreen(start_dir=Path.cwd()), _on_picked)
+
+    # ------------------------------------------------------------------
+    # Fuzzy search action  (Ctrl+S)
+    # ------------------------------------------------------------------
+
+    def action_open_fuzzy_search(self) -> None:
+        """Open the fuzzy file search picker (Ctrl+S).
+
+        The selected path is appended to whatever is currently in the
+        input box so it can be used as a command argument.
+        """
+
+        def _on_picked(path: Path | None) -> None:
+            if path is not None:
+                self._insert_path_into_input(path)
+                self.add_output(f"[dim]Selected: {path}[/dim]")
+
+        self.push_screen(FuzzyFileSearchScreen(root=Path.cwd()), _on_picked)
+
+    # ------------------------------------------------------------------
+    # Editor action  (Ctrl+G)
+    # ------------------------------------------------------------------
+
+    def action_open_in_editor(self) -> None:
+        """Open a file in the external editor (Ctrl+G).
+
+        If the input box contains a valid file path token it is used
+        directly; otherwise the file picker is shown first.
+        """
+        input_widget = self.query_one("#input-box", Input)
+        tokens = str(input_widget.value).split()
+        candidate: Path | None = None
+        for token in reversed(tokens):
+            p = Path(token).expanduser()
+            if p.is_file():
+                candidate = p
+                break
+
+        if candidate is not None:
+            self.run_worker(self._launch_editor(candidate), name="editor")
+        else:
+
+            def _on_picked(result: FilePickerResult | None) -> None:
+                if result is not None:
+                    self.run_worker(self._launch_editor(result.path), name="editor")
+
+            self.push_screen(FilePickerScreen(start_dir=Path.cwd()), _on_picked)
+
+    # ------------------------------------------------------------------
+    # Shared UI helpers
+    # ------------------------------------------------------------------
+
+    def _insert_path_into_input(self, path: Path) -> None:
+        """Append *path* (as a string token) to the current input value."""
+        input_widget = self.query_one("#input-box", Input)
+        current = str(input_widget.value).rstrip()
+        sep = " " if current else ""
+        input_widget.value = f"{current}{sep}{path}"
+        input_widget.cursor_position = len(str(input_widget.value))
+        input_widget.focus()
+
+    async def _launch_editor(self, path: Path) -> None:
+        """Worker: open *path* in the configured external editor."""
+        launcher = EditorLauncher.from_config(self.app_config)
+        self.add_output(f"[bold cyan]Opening[/bold cyan] {path} [dim]in {launcher.editor}[/dim]")
+        exit_code = await launcher.open_async(self, path)
+        if exit_code != 0:
+            self.add_output(f"[red]Editor exited with code {exit_code}[/red]")
 
     # ------------------------------------------------------------------
     # Input handling

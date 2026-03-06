@@ -55,12 +55,21 @@ cli = typer.Typer(
 _context_manager: ContextManager | None = None
 
 
-def get_context_manager() -> ContextManager:
+def get_context_manager(config: AppConfig | None = None) -> ContextManager:
     """Return (or lazily create) the application-wide :class:`ContextManager` singleton.
 
     In TUI mode the singleton is created once when the :class:`~tui_typer.app.CLIApp`
     starts and then injected into every command via ``ctx.obj``.  In batch /
     scripted mode this factory is called on demand.
+
+    Parameters
+    ----------
+    config:
+        An already-constructed :class:`~tui_typer.context.config.AppConfig`
+        instance to use.  When ``None`` (default) a new one is created with
+        the standard path (``~/.tui_typer.ini``).  The *config* argument is
+        only used on the **first call** that creates the singleton — subsequent
+        calls return the existing instance unchanged.
 
     If you need to reset the singleton in tests, set
     ``tui_typer.cli._context_manager = None`` before calling this function.
@@ -69,7 +78,7 @@ def get_context_manager() -> ContextManager:
     if _context_manager is None:
         _context_manager = ContextManager(
             console=CliConsole(),
-            config=AppConfig(),
+            config=config or AppConfig(),
         )
     return _context_manager
 
