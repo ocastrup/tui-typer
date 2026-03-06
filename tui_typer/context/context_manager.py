@@ -107,7 +107,7 @@ class ContextManager:
         with self._lock:
             if key in self._state_registry and not overwrite:
                 raise ValueError(
-                    f"State key '{key}' is already registered. " "Use overwrite=True to replace it."
+                    f"State key '{key}' is already registered. Use overwrite=True to replace it."
                 )
             self._state_registry[key] = state
 
@@ -156,4 +156,4 @@ class ContextManager:
 
     def __repr__(self) -> str:  # pragma: no cover
         keys = self.registered_keys()
-        return f"<ContextManager interactive={self._interactive} " f"states={keys}>"
+        return f"<ContextManager interactive={self._interactive} states={keys}>"

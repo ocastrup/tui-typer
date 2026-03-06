@@ -16,11 +16,15 @@ class AppConfig:
             "theme": "default",
             "show_timestamps": "false",
         },
+        "editor": {
+            # Empty string means "auto-detect from $EDITOR / $VISUAL / platform default"
+            "command": "",
+        },
     }
 
     def __init__(self, config_path: str = None):
         self.config = configparser.ConfigParser()
-        self.config_path = Path(config_path or "~/.cli_app.ini").expanduser()
+        self.config_path = Path(config_path or "~/.tui_typer.ini").expanduser()
         self.load()
         self._apply_defaults()
 
@@ -66,3 +70,18 @@ class AppConfig:
     @property
     def max_history(self) -> int:
         return self.getint("general", "max_history", 100)
+
+    @property
+    def editor(self) -> str | None:
+        """Preferred editor command from config, or ``None`` to auto-detect.
+
+        Set ``command`` under the ``[editor]`` section of the INI file::
+
+            [editor]
+            command = code
+
+        An empty string or missing value means fall back to ``$EDITOR``,
+        ``$VISUAL``, or the platform default.
+        """
+        cmd = self.get("editor", "command", fallback="").strip()
+        return cmd if cmd else None
