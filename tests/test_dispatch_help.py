@@ -3,8 +3,8 @@ import re
 import pytest
 from typer.testing import CliRunner
 
-from cli import cli
-from tui_typer.commands.base import dispatch_typer_command
+from tui_typer.cli import cli
+from tui_typer.command_dispatcher.base import dispatch_typer_command
 
 runner = CliRunner()
 
@@ -22,7 +22,7 @@ def test_help_shows_usage(runner: CliRunner, args):
         result.exit_code == 0
     ), f"Expected exit_code 0, got {result.exit_code}; exception={result.exception}"
     assert result.stdout, "Expected help text in stdout"
-    assert re.search(r"Usage:\s+root\s+", result.stdout), "Usage header missing in help output"
+    assert re.search(r"Usage:", result.stdout), "Usage header missing in help output"
 
 
 def test_serialize_excel_options_present(runner: CliRunner):

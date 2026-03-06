@@ -1,14 +1,14 @@
 import asyncio
 from unittest.mock import MagicMock
 
-from app import CLIApp
+from tui_typer.app import CLIApp
 
 
 def test_exit_invokes_app_exit_directly():
     app = CLIApp()
-    # Avoid touching UI widgets in tests
-    app._non_interactive = True
-    # Mock exit to verify it's called
+
+    # Prevent any widget access — both add_output and exit are mocked
+    app.add_output = MagicMock()
     app.exit = MagicMock()
 
     async def run():

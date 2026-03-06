@@ -1,19 +1,16 @@
 import configparser
 from pathlib import Path
 
-from loguru import logger
-
-from tui_typer import __app_name__
-
 
 class AppConfig:
     """Application configuration manager."""
 
     DEFAULT_CONFIG = {
         "general": {
-            "app_name": __app_name__,
-            "history_file": f"~/.{__app_name__}_history",
+            "app_name": "CLI App",
+            "history_file": "~/.cli_app_history",
             "max_history": "100",
+            "log_level": "INFO",
         },
         "display": {
             "theme": "default",
@@ -23,30 +20,24 @@ class AppConfig:
 
     def __init__(self, config_path: str = None):
         self.config = configparser.ConfigParser()
-        self.config_path = Path(config_path or f"~/.{__app_name__}.ini").expanduser()
-        self._load_defaults()
+        self.config_path = Path(config_path or "~/.cli_app.ini").expanduser()
         self.load()
-        self._interactive: bool = False
+        self._apply_defaults()
 
-    @property
-    def interactive(self) -> bool:
-        return self._interactive
-
-    @interactive.setter
-    def interactive(self, value: bool) -> None:
-        self._interactive = value
-
-    def _load_defaults(self) -> None:
-        """Load default configuration."""
-        logger.debug("Loading default configuration")
+    def _apply_defaults(self) -> None:
+        """Apply default configuration only for missing sections/keys."""
         for section, options in self.DEFAULT_CONFIG.items():
-            self.config[section] = options
+            if section not in self.config:
+                self.config[section] = {}
+            for key, value in options.items():
+                if key not in self.config[section]:
+                    self.config[section][key] = value
 
     def load(self) -> None:
         """Load configuration from file."""
-        logger.debug(f"Loading configuration from {self.config_path}")
         if self.config_path.exists():
             self.config.read(self.config_path)
+        # If file doesn't exist, config will be empty and defaults will be applied
 
     def save(self) -> None:
         """Save configuration to file."""

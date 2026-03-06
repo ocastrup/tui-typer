@@ -1,8 +1,8 @@
-"""Unit tests for CLI help commands."""
+"""Unit tests for CLI help command_dispatcher."""
 
 from typer.testing import CliRunner
 
-from cli import cli
+from tui_typer.cli import cli
 
 
 def test_help_contains_usage_and_options():

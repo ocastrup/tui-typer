@@ -2,7 +2,7 @@
 
 from typer.testing import CliRunner
 
-from cli import cli
+from tui_typer.cli import cli
 
 
 def test_help_does_not_raise_defaultplaceholder():
