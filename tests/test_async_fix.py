@@ -10,13 +10,13 @@ def test_imports():
 
 
 def test_async_command_executes():
-    from cli import cli
-    from tui_typer.commands.base import dispatch_typer_command
+    from tui_typer.cli import cli
+    from tui_typer.command_dispatcher.base import dispatch_typer_command
 
     async def _run():
         result = await dispatch_typer_command(cli, ["version"])
         assert result.exit_code == 0
-        assert "OCX Reader CLI" in result.stdout
+        assert "tui-typer" in result.stdout
 
     asyncio.run(_run())
 

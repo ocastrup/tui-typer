@@ -23,7 +23,7 @@ def test_history_command_registered():
     try:
         from typer.testing import CliRunner
 
-        from cli import cli
+        from tui_typer.cli import cli
 
         runner = CliRunner()
         result = runner.invoke(cli, ["--help"])
@@ -43,12 +43,12 @@ def test_command_loader_params():
     """Test that command loader includes params."""
     print("\nTesting command loader with params...")
     try:
-        from cli import cli
+        from tui_typer.cli import cli
         from tui_typer.commands.loader import load_commands
 
         commands = load_commands(cli)
 
-        # Check if commands have params attribute
+        # Check if command_dispatcher have params attribute
         has_params = False
         for _name, cmd in commands.items():
             if hasattr(cmd, "params"):
@@ -70,7 +70,7 @@ def test_app_initialization():
     """Test that the app can be initialized."""
     print("\nTesting app initialization...")
     try:
-        from app import CLIApp
+        from tui_typer.app import CLIApp
 
         app = CLIApp()
 

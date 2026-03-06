@@ -5,8 +5,8 @@ import sys
 import pytest
 from typer.testing import CliRunner
 
-from cli import cli  # Typer app instance defined at project root
-from tui_typer.commands.base import dispatch_typer_command
+from tui_typer.cli import cli  # Typer app instance defined at project root
+from tui_typer.command_dispatcher.base import dispatch_typer_command
 
 # Ensure project root is on sys.path so tests can import top-level modules (e.g., cli.py)
 # This file lives in <project>/tests/conftest.py; we want <project> on sys.path.

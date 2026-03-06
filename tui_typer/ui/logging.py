@@ -49,9 +49,10 @@ class TextualProgressSink:
         self.progress_widget.update(progress=self._current)
 
     def reset(self) -> None:
-        """Reset progress to zero."""
+        """Reset progress to zero and restore default total, ready for next command."""
+        self._total = 100.0
         self._current = 0.0
-        self.progress_widget.update(progress=0.0)
+        self.progress_widget.update(total=self._total, progress=0.0)
 
     def complete(self) -> None:
         """Mark progress as complete."""
